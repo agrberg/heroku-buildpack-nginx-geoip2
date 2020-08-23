@@ -9,13 +9,22 @@ unset GIT_DIR
 BUILD_DIR=$1
 CACHE_DIR=$2
 BUILDPACK_DIR="$(dirname "$(dirname "$0")")"
+GEO_IP_DIR="$BUILD_DIR/.geoip"
 
+mkdir -p $GEO_IP_DIR
 mkdir -p "$BUILD_DIR/bin/"
 mkdir -p "$BUILD_DIR/nginx"
 tar -zxvf "nginx-$STACK".tgz -C "$BUILD_DIR/nginx"
 
 cp "$BUILD_DIR/nginx/nginx" "$BUILD_DIR/bin/nginx"
 cp "$BUILD_DIR/nginx/nginx-debug" "$BUILD_DIR/bin/nginx-debug"
+cp -r "$BUILD_DIR/nginx/maxmind/." $GEO_IP_DIR
+
+mkdir -p $BUILD_DIR/.profile.d
+cat <<EOF >$BUILD_DIR/.profile.d/geoip.sh
+export LD_LIBRARY_PATH="\$HOME/.geoip:\$LD_LIBRARY_PATH"
+EOF
+cp $BUILD_DIR/.profile.d/geoip.sh ./export
 
 nginx_version=$($BUILD_DIR/bin/nginx -V 2>&1 | head -1 | awk '{ print $NF }')
 echo "-----> nginx-buildpack: Installed ${nginx_version} to app/bin"
