@@ -1,227 +1,68 @@
-# Heroku Buildpack: NGINX
+# Heroku Buildpack: NGINX w/ GeoIP2
 
-Nginx-buildpack vendors NGINX inside a dyno and connects NGINX to an app server via UNIX domain sockets.
+Extended from [Heroku's official NGINX buildpack](https://github.com/heroku/heroku-buildpack-nginx).
 
-## Motivation
+This vendors NGINX w/ the [GeoIP2 module](https://github.com/leev/ngx_http_geoip2_module/) and necessary [libmaxminddb](https://github.com/maxmind/libmaxminddb) inside a dyno and connects NGINX to an app server via UNIX domain sockets.
 
-Some application servers (e.g. Ruby's Unicorn) halt progress when dealing with network I/O. Heroku's Cedar routing stack [buffers only the headers](https://devcenter.heroku.com/articles/http-routing#request-buffering) of inbound requests. (The Cedar router will buffer the headers and body of a response up to 1MB) Thus, the Heroku router engages the dyno during the entire body transfer –from the client to dyno. For applications servers with blocking I/O, the latency per request will be degraded by the content transfer. By using NGINX in front of the application server, we can eliminate a great deal of transfer time from the application server. In addition to making request body transfers more efficient, all other I/O should be improved since the application server need only communicate with a UNIX socket on localhost. Basically, for webservers that are not designed for efficient, non-blocking I/O, we will benefit from having NGINX to handle all I/O operations.
+## Setup
 
-## Versions
+* Setup the webserver to listen to the socket at `/tmp/nginx.socket`. e.g.:
 
-### Cedar-14 (deprecated)
-* NGINX Version: 1.9.5
-### Heroku 16
-* NGINX Version: 1.9.5
-### Heroku 18
-* NGINX Version: 1.18.0
-### Heroku 20
-* NGINX Version: 1.18.0
+	```ruby
+	# config/puma.rb
+	bind 'unix:///tmp/nginx.socket'
+	```
 
-## Requirements (Proxy Mode)
+* Touch `/tmp/app-initialized` when the process is ready to accept traffic. e.g.:
 
-* Your webserver listens to the socket at `/tmp/nginx.socket`.
-* You touch `/tmp/app-initialized` when you are ready for traffic.
-* You can start your web server with a shell command.
+	```ruby
+	# config/puma.rb
+	on_worker_fork do
+      FileUtils.touch('/tmp/app-initialized')
+	end
+	```
 
-## Requirements (Solo Mode)
 
-* Add a custom nginx config to your app source code at `config/nginx.conf.erb`. You can start by copying the [sample config for nginx solo mode](config/nginx-solo-sample.conf.erb).
+* Start the web server with a shell command through nginx-start. e.g.:
 
-## Features
+  ```ruby
+  # Procfile
+  web: bin/start-nginx bundle exec puma -C config/puma.rb
+  ```
 
-* Unified NXNG/App Server logs.
-* [L2met](https://github.com/ryandotsmith/l2met) friendly NGINX log format.
-* [Heroku request ids](https://devcenter.heroku.com/articles/http-request-id) embedded in NGINX logs.
-* Crashes dyno if NGINX or App server crashes. Safety first.
-* Language/App Server agnostic.
-* Customizable NGINX config.
-* Application coordinated dyno starts.
+* Configure GeoIP2
+
+	This is designed to work out of the box with the [MaxMind Buildpack](https://github.com/mantisadnetwork/heroku-buildpack-maxmind)
+
+	**Note:** You must sign up for a [MaxMind Account](https://www.maxmind.com/en/geolite2/signup) and create a LicenceKey.
+
+	Add the MaxMind Buildpack and set
+	* `MAXMIND_KEY` your LicenceKey
+	* `MAXMIND_EDITIONS` to `"GeoLite2-City, GeoLite2-ASN"` for the provided [`nginx.conf.erb`](config/nginx.conf.erb)
 
 ### Logging
 
 NGINX will output the following style of logs:
 
 ```
-measure.nginx.service=0.007 request_id=e2c79e86b3260b9c703756ec93f8a66d
-```
-
-You can correlate this id with your Heroku router logs:
-
-```
-at=info method=GET path=/ host=salty-earth-7125.herokuapp.com request_id=e2c79e86b3260b9c703756ec93f8a66d fwd="67.180.77.184" dyno=web.1 connect=1ms service=8ms status=200 bytes=21
-```
-#### Setting custom log paths
-
-You can configure custom log paths using the environment variables `NGINX_ACCESS_LOG_PATH` and `NGINX_ERROR_LOG_PATH`.
-
-For example, if you wanted to stop nginx from logging your access logs you could set `NGINX_ACCESS_LOG_PATH` to `/dev/null`:
-```bash
-$ heroku config:set NGINX_ACCESS_LOG_PATH="/dev/null"
-```
-
-### Language/App Server Agnostic
-
-nginx-buildpack provides a command named `bin/start-nginx` this command takes another command as an argument. You must pass your app server's startup command to `start-nginx`.
-
-For example, to get NGINX and Unicorn up and running:
-
-```bash
-$ cat Procfile
-web: bin/start-nginx bundle exec unicorn -c config/unicorn.rb
-```
-
-#### nginx debug mode
-```bash
-$ cat Procfile
-web: bin/start-nginx-debug bundle exec unicorn -c config/unicorn.rb
-```
-
-### nginx Solo Mode
-
-nginx-buildpack provides a command named `bin/start-nginx-solo`. This is for you if you don't want to run an additional app server on the Dyno.
-This mode requires you to put a `config/nginx.conf.erb` in your app code. You can start by coping the [sample config for nginx solo mode](config/nginx-solo-sample.conf.erb).
-For example, to get NGINX and Unicorn up and running:
-
-```bash
-$ cat Procfile
-web: bin/start-nginx-solo
-```
-
-### Setting the Worker Processes and Connections
-
-You can configure NGINX's `worker_processes` directive via the
-`NGINX_WORKERS` environment variable.
-
-For example, to set your `NGINX_WORKERS` to 8 on a PX dyno:
-
-```bash
-$ heroku config:set NGINX_WORKERS=8
-```
-
-Similarly, the `NGINX_WORKER_CONNECTIONS` environment variable can configure the `worker_connections` directive:
-
-```bash
-$ heroku config:set NGINX_WORKER_CONNECTIONS=2048
+[nginx] request_time=0.007 request_id=e2c79e86b3260b9c703756ec93f8a66d location=Austin, TX
 ```
 
 ### Customizable NGINX Config
 
-You can provide your own NGINX config by creating a file named `nginx.conf.erb` in the config directory of your app. Start by copying the buildpack's [default config file](config/nginx.conf.erb).
+You can provide your own NGINX config by creating `config/nginx.conf.erb` in your app. Start by copying the buildpack's [default config file](config/nginx.conf.erb).
 
-### Customizable NGINX Compile Options
+### Opinionated Profided Config
 
-See [scripts/build_nginx](scripts/build_nginx) for the build steps. Configuring is as easy as changing the "./configure" options.
+* `geoip2_proxy 10.0.0.0/8;` is used because Heroku acts as a reverse proxy and the incoming IP address (the nginx `$remote_addr` variable) will be a private IP. This tells `geoip` to use the `X-Forwarded-For` header value which is the user's real IP.
 
-You can run the builds in a [Docker](https://www.docker.com/) container:
+* `geoip2 /app/GeoLite2-City.mmdb`
+  * `$geoip2_city city names en;` This sets `$geoip2_city` to the city's English name if available (see `map` directive).
+  * `$geoip2_state subdivisions 0 iso_code;` This sets `$geoip2_state` to the location's subdivisions ISO code. E.g. For states in the USA this would be TX for Texas.
 
-```
-$ make build # It outputs the latest builds to bin/cedar-*
-```
+* `geoip2 /app/GeoLite2-ASN.mmdb` For private networks w/o location
+  * `$geoip2_asn autonomous_system_organization;` This sets `$geoip2_asn` to the name of the organization which owns the autonomous system. E.g. This could be `Facebook` if they're crawling your site. They will not have a city location.
 
-To test the builds:
-
-```
-$ make shell
-$ cp bin/nginx-$STACK bin/nginx
-$ FORCE=1 bin/start-nginx
-```
-
-### Application/Dyno coordination
-
-The buildpack will not start NGINX until a file has been written to `/tmp/app-initialized`. Since NGINX binds to the dyno's $PORT and since the $PORT determines if the app can receive traffic, you can delay NGINX accepting traffic until your application is ready to handle it. The examples below show how/when you should write the file when working with Unicorn.
-
-## Setup
-
-Here are 2 setup examples. One example for a new app, another for an existing app. In both cases, we are working with ruby & unicorn. Keep in mind that this buildpack is not ruby specific.
-
-### Existing App
-
-Update Buildpacks to use the latest stable version of this buildpack:
-```bash
-$ heroku buildpacks:add heroku-community/nginx
-```
-Alternatively, you can use the Github URL of this repo if you want to edge version.
-
-Update Procfile:
-```
-web: bin/start-nginx bundle exec unicorn -c config/unicorn.rb
-```
-```bash
-$ git add Procfile
-$ git commit -m 'Update procfile for NGINX buildpack'
-```
-Update Unicorn Config
-```ruby
-require 'fileutils'
-listen '/tmp/nginx.socket'
-before_fork do |server,worker|
-	FileUtils.touch('/tmp/app-initialized')
-end
-```
-```bash
-$ git add config/unicorn.rb
-$ git commit -m 'Update unicorn config to listen on NGINX socket.'
-```
-Deploy Changes
-```bash
-$ git push heroku master
-```
-
-### New App
-
-```bash
-$ mkdir myapp; cd myapp
-$ git init
-```
-
-**Gemfile**
-```ruby
-source 'https://rubygems.org'
-gem 'unicorn'
-```
-
-**config.ru**
-```ruby
-run Proc.new {[200,{'Content-Type' => 'text/plain'}, ["hello world"]]}
-```
-
-**config/unicorn.rb**
-```ruby
-require 'fileutils'
-preload_app true
-timeout 5
-worker_processes 4
-listen '/tmp/nginx.socket', backlog: 1024
-
-before_fork do |server,worker|
-	FileUtils.touch('/tmp/app-initialized')
-end
-```
-Install Gems
-```bash
-$ bundle install
-```
-Create Procfile
-```
-web: bin/start-nginx bundle exec unicorn -c config/unicorn.rb
-```
-Create & Push Heroku App:
-```bash
-$ heroku create
-$ heroku buildpacks:add heroku/ruby
-$ heroku buildpacks:add https://github.com/heroku/heroku-buildpack-nginx
-$ git add .
-$ git commit -am "init"
-$ git push heroku master
-$ heroku logs -t
-```
-Visit App
-```
-$ heroku open
-```
-
-## License
-Copyright (c) 2013 Ryan R. Smith
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+* `map $geoip2_city $location` This normalizes the `$location` for logging
+  * If `$geoip2_city` is blank that's a generally good sign the visiting IP is an ASN so `$location` is set to `$geoip2_asn`.
+	* Otherwise `$location` is set to `"$geoip2_city, $geoip2_state"` e.g. `"Austin, TX"`.
