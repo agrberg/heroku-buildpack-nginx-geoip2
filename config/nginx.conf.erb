@@ -15,18 +15,18 @@ http {
 
   server_tokens off;
 
-	geoip2_proxy 10.0.0.0/8;
-	geoip2 /app/GeoLite2-City.mmdb {
-		$geoip2_city city names en;
-		$geoip2_state subdivisions 0 iso_code;
-	}
-	geoip2 /app/GeoLite2-ASN.mmdb {
-		$geoip2_asn autonomous_system_organization;
-	}
-	map $geoip2_city $location {
-		"" $geoip2_asn;
-		default "$geoip2_city, $geoip2_state";
-	}
+  geoip2_proxy 10.0.0.0/8;
+  geoip2 /app/GeoLite2-City.mmdb {
+    $geoip2_city city names en;
+    $geoip2_state subdivisions 0 iso_code;
+  }
+  geoip2 /app/GeoLite2-ASN.mmdb {
+    $geoip2_asn autonomous_system_organization;
+  }
+  map $geoip2_city $location {
+    "" $geoip2_asn;
+    default "$geoip2_city, $geoip2_state";
+  }
 
   log_format l2met '[nginx] request_time=$request_time request_id=$http_x_request_id' location=$location;
   access_log <%= ENV['NGINX_ACCESS_LOG_PATH'] || 'logs/nginx/access.log' %> l2met;
