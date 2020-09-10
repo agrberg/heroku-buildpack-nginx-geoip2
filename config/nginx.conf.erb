@@ -23,6 +23,7 @@ http {
   geoip2 /app/GeoLite2-ASN.mmdb {
     $geoip2_asn autonomous_system_organization;
   }
+  # A hack see: https://stackoverflow.com/questions/14433309/how-to-define-a-global-variable-in-nginx-conf-file
   map $geoip2_city $location {
     "" $geoip2_asn;
     default "$geoip2_city, $geoip2_state";
