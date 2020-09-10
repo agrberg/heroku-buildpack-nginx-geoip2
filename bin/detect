@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-echo 'NGINX Buildpack w/ GeoIP2 Module + MaxMind lib'
+echo 'NGINX+GeoIP2(+libmaxminddb)'
 exit 0
