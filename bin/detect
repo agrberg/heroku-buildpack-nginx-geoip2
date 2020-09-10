@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# bin/detect <build-dir>
-echo 'nginx-buildpack'
+
+echo 'NGINX Buildpack w/ GeoIP2 Module + MaxMind lib'
 exit 0
