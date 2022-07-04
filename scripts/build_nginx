@@ -4,19 +4,19 @@
 # image. More information on the Heroku Stack can be found
 # at https://devcenter.heroku.com/articles/stack
 
-GEO_IP2_VERSION=${GEO_IP2_VERSION-3.3}
+GEO_IP2_VERSION=${GEO_IP2_VERSION-3.4}
 HEADERS_MORE_VERSION=${HEADERS_MORE_VERSION-0.33}
-MAXMIND_VERSION=${MAXMIND_VERSION-1.4.3}
-NGINX_VERSION=${NGINX_VERSION-1.18.0}
-PCRE_VERSION=${PCRE_VERSION-8.44}
+MAXMIND_VERSION=${MAXMIND_VERSION-1.6.0}
+NGINX_VERSION=${NGINX_VERSION-1.20.2}
+PCRE_VERSION=${PCRE_VERSION-8.45}
 UUID4_VERSION=${UUID4_VERSION-master}
-ZLIB_VERSION=${ZLIB_VERSION-1.2.11}
+ZLIB_VERSION=${ZLIB_VERSION-1.2.12}
 
 geo_ip2_module_url=https://github.com/leev/ngx_http_geoip2_module/archive/${GEO_IP2_VERSION}.tar.gz
 headers_more_nginx_module_url=https://github.com/openresty/headers-more-nginx-module/archive/v${HEADERS_MORE_VERSION}.tar.gz
 maxmind_url=https://github.com/maxmind/libmaxminddb/releases/download/${MAXMIND_VERSION}/libmaxminddb-${MAXMIND_VERSION}.tar.gz
 nginx_tarball_url=https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
-pcre_tarball_url=https://ftp.pcre.org/pub/pcre/pcre-${PCRE_VERSION}.tar.gz
+pcre_tarball_url=https://ftp.exim.org/pub/pcre/pcre-${PCRE_VERSION}.tar.gz
 uuid4_url=https://github.com/cybozu/nginx-uuid4-module/archive/${UUID4_VERSION}.tar.gz
 zlib_url=http://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
 

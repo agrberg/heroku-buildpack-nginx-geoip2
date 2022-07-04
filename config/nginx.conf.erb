@@ -12,6 +12,7 @@ http {
   gzip on;
   gzip_comp_level 2;
   gzip_min_length 512;
+  gzip_proxied any; # Heroku router sends Via header
 
   server_tokens off;
 
@@ -29,7 +30,7 @@ http {
     default "$geoip2_city, $geoip2_state";
   }
 
-  log_format l2met '[nginx] request_time=$request_time request_id=$http_x_request_id' location=$location;
+  log_format l2met '[nginx] measure#nginx.service=$request_time request_id=$http_x_request_id' location=$location;
   access_log <%= ENV['NGINX_ACCESS_LOG_PATH'] || 'logs/nginx/access.log' %> l2met;
   error_log <%= ENV['NGINX_ERROR_LOG_PATH'] || 'logs/nginx/error.log' %>;
 
